@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Tanda Tangan Digital & Verifikasi Kriptografi</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config for specific theme requirements -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-blue': '#1e3a8a',    // Dark Blue
+                        'brand-emerald': '#059669', // Emerald Green
+                        'brand-slate': '#f8fafc',   // Slate light
+                        'brand-slate-dark': '#334155' // Slate dark
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Print Styles for Download/Print feature */
+        @media print {
+            body { background-color: white !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+        }
+        
+        /* Custom scrollbar for side panel */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-brand-slate-dark">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-brand-blue text-white shadow-lg no-print sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="shield-check" class="w-8 h-8 text-brand-emerald"></i>
+                    <span class="font-bold text-xl tracking-tight">SecureSign ID</span>
+                </div>
+                <div class="flex space-x-2 sm:space-x-4">
+                    <button onclick="switchTab('generator')" id="tab-generator" class="bg-blue-800 text-white px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-blue-700 flex items-center gap-2 shadow-inner">
+                        <i data-lucide="pen-tool" class="w-4 h-4"></i> <span class="hidden sm:inline">Generator</span>
+                    </button>
+                    <button onclick="switchTab('verifier')" id="tab-verifier" class="text-blue-100 hover:bg-blue-800 hover:text-white px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
+                        <i data-lucide="shield-search" class="w-4 h-4"></i> <span class="hidden sm:inline">Verifikasi PDF</span>
+                    </button>
+                    <button onclick="switchTab('scanner')" id="tab-scanner" class="text-blue-100 hover:bg-blue-800 hover:text-white px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
+                        <i data-lucide="qr-code" class="w-4 h-4"></i> <span class="hidden sm:inline">Simulasi Scan QR</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- ========================================== -->
+        <!-- MODUL 1: GENERATOR TANDA TANGAN DIGITAL    -->
+        <!-- ========================================== -->
+        <section id="view-generator" class="block animate-fade-in no-print">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-brand-blue flex items-center gap-2">
+                    <i data-lucide="file-key-2" class="w-8 h-8"></i>
+                    Penerbitan Tanda Tangan Digital
+                </h1>
+                <p class="text-slate-500 mt-2">Buat identitas kriptografis dokumen untuk simulasi penandatanganan.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Form Input -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8">
+                    <form id="signature-form" onsubmit="handleGenerate(event)" class="space-y-6">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">Nama Penandatangan</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="user" class="h-5 w-5 text-slate-400"></i>
+                                    </div>
+                                    <input type="text" id="signerName" required placeholder="Cth: Budi Santoso" class="pl-10 w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all">
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">Jabatan / Instansi</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="building-2" class="h-5 w-5 text-slate-400"></i>
+                                    </div>
+                                    <input type="text" id="signerRole" required placeholder="Cth: Direktur Utama PT. ABC" class="pl-10 w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Judul / Identitas Dokumen</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i data-lucide="file-text" class="h-5 w-5 text-slate-400"></i>
+                                </div>
+                                <input type="text" id="documentTitle" required placeholder="Cth: Surat Perjanjian Kerja Sama No. 123/SPK/2026" class="pl-10 w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all">
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Tanggal & Waktu Penandatanganan</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i data-lucide="calendar-clock" class="h-5 w-5 text-slate-400"></i>
+                                </div>
+                                <input type="datetime-local" id="signDate" required class="pl-10 w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-brand-blue hover:bg-blue-800 text-white font-bold py-3.5 px-4 rounded-lg flex justify-center items-center gap-2 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                            <i data-lucide="fingerprint" class="w-5 h-5"></i>
+                            Rekam Data Penandatangan
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Result Area (QR Code) -->
+                <div class="lg:col-span-1">
+                    <div id="qr-result-container" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center text-center h-full hidden animate-fade-in">
+                        <div class="w-full flex justify-end mb-2">
+                            <span class="inline-flex items-center gap-1 bg-green-100 text-brand-emerald text-xs font-bold px-3 py-1 rounded-full">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Data Terekam
+                            </span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 mb-4">QR Code TTE</h3>
+                        
+                        <div class="bg-white p-3 rounded-xl border-2 border-dashed border-slate-200 mb-4 shadow-sm inline-block max-w-full overflow-hidden">
+                            <div id="qrcode" class="mx-auto flex justify-center [&>canvas]:max-w-full [&>img]:max-w-full [&>canvas]:h-auto [&>img]:h-auto"></div>
+                        </div>
+                        
+                        <div class="w-full bg-slate-50 p-3 rounded-lg border border-slate-200 mb-6 text-left">
+                            <p class="text-[11px] text-slate-500 font-bold uppercase tracking-wide mb-1">Fingerprint Dokumen (SHA-256):</p>
+                            <p id="generated-hash" class="text-xs font-mono text-brand-blue break-all bg-blue-50/50 p-2 rounded border border-blue-100"></p>
+                        </div>
+                        
+                        <div class="flex flex-col gap-3 w-full mt-auto">
+                            <button onclick="downloadQRCode()" type="button" class="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 px-4 rounded-lg flex justify-center items-center gap-2 transition-colors">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Unduh QR Code
+                            </button>
+                            <button onclick="simulateScanRedirect()" type="button" class="w-full bg-brand-blue hover:bg-blue-800 text-white font-semibold py-2.5 px-4 rounded-lg flex justify-center items-center gap-2 transition-colors shadow-sm">
+                                <i data-lucide="external-link" class="w-4 h-4"></i>
+                                Simulasi Scan & Verifikasi
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Placeholder when empty -->
+                    <div id="qr-placeholder" class="bg-slate-50 rounded-xl shadow-inner p-8 border border-slate-200 border-dashed flex flex-col items-center justify-center text-center h-full min-h-[350px]">
+                        <div class="bg-white p-4 rounded-full shadow-sm mb-4 border border-slate-100">
+                            <i data-lucide="shield-plus" class="w-10 h-10 text-slate-400"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-700 mb-2">Belum ada data</h4>
+                        <p class="text-sm text-slate-500">Isi formulir di samping untuk merekam data identitas penandatangan.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- MODUL 2: PORTAL VERIFIKASI DOKUMEN (PDF)   -->
+        <!-- ========================================== -->
+        <section id="view-verifier" class="hidden animate-fade-in h-[85vh]">
+            
+            <!-- VIEW A: Upload Area -->
+            <div id="verify-upload-view" class="h-full flex flex-col items-center justify-center animate-slide-up">
+                <div class="max-w-2xl w-full text-center">
+                    <div class="inline-flex items-center justify-center p-4 bg-blue-100 rounded-full mb-6">
+                        <i data-lucide="file-search" class="w-12 h-12 text-brand-blue"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-brand-blue mb-4">Portal Verifikasi Dokumen PDF</h2>
+                    <p class="text-slate-600 mb-8 text-lg">Unggah dokumen elektronik Anda untuk memvalidasi keaslian Tanda Tangan Elektronik (TTE) yang diterbitkan oleh PSrE.</p>
+                    
+                    <!-- Drag & Drop Zone -->
+                    <div id="drop-zone" 
+                         class="bg-white border-2 border-dashed border-blue-300 hover:border-brand-blue hover:bg-blue-50/50 rounded-2xl p-12 transition-all cursor-pointer shadow-sm relative group"
+                         onclick="document.getElementById('file-upload').click()"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event)">
+                        
+                        <input type="file" id="file-upload" class="hidden" accept="application/pdf" onchange="handleFileSelect(event)">
+                        
+                        <div class="flex flex-col items-center pointer-events-none">
+                            <i data-lucide="cloud-upload" class="w-16 h-16 text-blue-400 group-hover:text-brand-blue group-hover:-translate-y-2 transition-all duration-300 mb-4"></i>
+                            <h3 class="text-xl font-bold text-slate-700 mb-2">Klik atau Seret Dokumen PDF ke sini</h3>
+                            <p class="text-slate-500">Mendukung format .pdf (Maks. 10MB)</p>
+                            
+                            <div class="mt-6 flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-100 px-4 py-2 rounded-full">
+                                <i data-lucide="lock" class="w-3 h-3"></i> Privasi Terjamin. Dokumen diproses secara lokal di perangkat Anda.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW B: Processing / Loading -->
+            <div id="verify-loading-view" class="hidden h-full flex-col items-center justify-center animate-fade-in">
+                <div class="bg-white p-10 rounded-2xl shadow-lg border border-slate-100 text-center max-w-md w-full relative overflow-hidden">
+                    <!-- Progress Bar Animation at top -->
+                    <div class="absolute top-0 left-0 h-1 bg-brand-blue w-full animate-[progress_2.5s_ease-in-out]"></div>
+                    
+                    <div class="relative">
+                        <i data-lucide="loader-2" class="w-16 h-16 text-brand-blue mx-auto animate-spin mb-6"></i>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2">Menganalisis Dokumen...</h3>
+                        <div class="space-y-2 text-left mt-6 bg-slate-50 p-4 rounded-lg text-sm text-slate-600">
+                            <p class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-brand-emerald opacity-0 animate-[fadeIn_0.1s_ease-out_0.5s_forwards]"></i> <span class="opacity-0 animate-[fadeIn_0.1s_ease-out_0.5s_forwards]">Membaca struktur PDF</span></p>
+                            <p class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-brand-emerald opacity-0 animate-[fadeIn_0.1s_ease-out_1.2s_forwards]"></i> <span class="opacity-0 animate-[fadeIn_0.1s_ease-out_1.2s_forwards]">Mengekstrak sertifikat digital</span></p>
+                            <p class="flex items-center gap-2"><i data-lucide="loader" class="w-4 h-4 text-brand-blue animate-spin opacity-0 animate-[fadeIn_0.1s_ease-out_1.8s_forwards]"></i> <span class="opacity-0 animate-[fadeIn_0.1s_ease-out_1.8s_forwards]">Memvalidasi integritas (SHA-256)</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW C: Split Viewer & Results (Like Komdigi Portal) -->
+            <div id="verify-result-view" class="hidden h-[90vh] flex flex-col bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-slide-up">
+                
+                <!-- Toolbar Header -->
+                <div class="bg-slate-800 text-white px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-4 truncate">
+                        <button onclick="resetVerifier()" class="text-slate-300 hover:text-white transition-colors p-1.5 hover:bg-slate-700 rounded-md" title="Unggah dokumen lain">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        </button>
+                        <div class="truncate border-l border-slate-600 pl-4">
+                            <h3 class="font-semibold text-sm sm:text-base truncate" id="res-filename">dokumen_terverifikasi.pdf</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="window.print()" class="text-slate-300 hover:text-white transition-colors p-1.5 hover:bg-slate-700 rounded-md hidden sm:block" title="Cetak Hasil">
+                            <i data-lucide="printer" class="w-5 h-5"></i>
+                        </button>
+                        <span class="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-md text-xs font-bold border border-emerald-500/30 flex items-center gap-1.5">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i> TERVERIFIKASI
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Main Split Interface -->
+                <div class="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
+                    
+                    <!-- Left Panel: PDF Viewer -->
+                    <div class="w-full lg:w-2/3 bg-[#525659] relative flex flex-col border-r border-slate-200">
+                        <div class="absolute inset-0 p-2 sm:p-4">
+                            <iframe id="pdf-viewer" class="w-full h-full rounded shadow-md border border-slate-700 bg-white" src=""></iframe>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Signature Details -->
+                    <div class="w-full lg:w-1/3 bg-slate-50 flex flex-col h-full overflow-hidden">
+                        
+                        <!-- Validity Status Banner -->
+                        <div id="pdf-validity-banner" class="bg-brand-emerald text-white p-5 flex flex-col items-center text-center relative shrink-0">
+                            <div class="absolute -right-10 -top-10 text-white/10">
+                                <i data-lucide="shield-check" class="w-40 h-40"></i>
+                            </div>
+                            <div class="relative z-10">
+                                <div class="bg-white p-2 rounded-full mb-2 shadow-lg inline-block text-brand-emerald">
+                                    <i data-lucide="badge-check" class="w-8 h-8"></i>
+                                </div>
+                                <h4 class="text-xl font-bold tracking-tight">Tanda Tangan Valid</h4>
+                                <p class="text-emerald-100 text-sm mt-1 leading-tight">Dokumen utuh dan belum mengalami perubahan sejak ditandatangani.</p>
+                            </div>
+                        </div>
+
+                        <!-- Scrollable Info Panel -->
+                        <div class="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
+                            
+                            <!-- Document Info -->
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i> Info Dokumen
+                                </h5>
+                                <div class="space-y-3">
+                                    <div>
+                                        <p class="text-xs text-slate-500">Judul / Identitas</p>
+                                        <p class="text-sm font-medium text-slate-800" id="res-doc-title">Dokumen Kontrak Perjanjian.pdf</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-slate-500">Kode Hash Kriptografi (SHA-256)</p>
+                                        <p class="text-xs font-mono text-slate-600 bg-slate-100 p-1.5 rounded mt-1 break-all border border-slate-200" id="res-doc-hash">8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Signer Information Accordion-style Card -->
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2 ml-1">
+                                    <i data-lucide="users" class="w-4 h-4"></i> Informasi Penandatangan (1)
+                                </h5>
+                                
+                                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <!-- Card Header -->
+                                    <div class="bg-blue-50/50 p-4 border-b border-slate-200 flex items-start gap-3">
+                                        <div class="bg-brand-blue p-2 rounded-lg text-white shadow-sm mt-0.5">
+                                            <i data-lucide="pen-tool" class="w-4 h-4"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="font-bold text-brand-blue text-base" id="res-signer-name">Budi Santoso</h6>
+                                            <p class="text-xs text-slate-500 font-medium mt-0.5" id="res-signer-role">Direktur Utama</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card Body -->
+                                    <div class="p-4 space-y-4">
+                                        <div class="flex items-start gap-3">
+                                            <i data-lucide="calendar-clock" class="w-4 h-4 text-slate-400 mt-0.5 shrink-0"></i>
+                                            <div>
+                                                <p class="text-xs text-slate-500 font-semibold">Waktu Penandatanganan</p>
+                                                <p class="text-sm text-slate-700 font-medium mt-0.5" id="res-sign-time">23 September 2026 14:30 WIB</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-start gap-3">
+                                            <i data-lucide="building" class="w-4 h-4 text-slate-400 mt-0.5 shrink-0"></i>
+                                            <div>
+                                                <p class="text-xs text-slate-500 font-semibold">Penerbit Sertifikat (Issuer)</p>
+                                                <p class="text-sm text-slate-700 font-medium mt-0.5">Otoritas Sertifikat Digital ID (Simulasi)</p>
+                                                <p class="text-[10px] text-slate-400 mt-0.5">Root CA: Kementerian Kominfo RI</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-start gap-3">
+                                            <i data-lucide="shield-alert" class="w-4 h-4 text-slate-400 mt-0.5 shrink-0"></i>
+                                            <div>
+                                                <p class="text-xs text-slate-500 font-semibold">Tujuan Penandatanganan</p>
+                                                <p class="text-sm text-slate-700 font-medium mt-0.5 italic">Otentikasi Dokumen dan Non-Repudiasi</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Download Report Button moved here -->
+                            <div class="pt-4 border-t border-slate-200">
+                                 <button onclick="downloadVerificationResult()" class="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 px-4 rounded-lg flex justify-center items-center gap-2 transition-colors">
+                                    <i data-lucide="download" class="w-4 h-4"></i>
+                                    Unduh Laporan Verifikasi (.txt)
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- MODUL 3: VERIFIKASI VIA URL (HASIL SCAN QR)-->
+        <!-- ========================================== -->
+        <section id="view-scanner" class="hidden animate-fade-in">
+            <div class="max-w-3xl mx-auto">
+                <div class="mb-8 text-center">
+                    <h1 class="text-3xl font-bold text-brand-blue flex items-center justify-center gap-2 mb-2">
+                        <i data-lucide="globe" class="w-8 h-8"></i>
+                        Halaman Verifikasi Publik
+                    </h1>
+                    <p class="text-slate-500">Simulasi halaman yang akan terbuka saat seseorang memindai QR Code TTE menggunakan kamera smartphone.</p>
+                </div>
+
+                <!-- Manual Hash Input for Simulation -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 text-center" id="scan-input-area">
+                    <i data-lucide="smartphone" class="w-12 h-12 text-slate-300 mx-auto mb-4"></i>
+                    <h3 class="text-lg font-bold text-slate-700 mb-2">Simulasi Scan Kode QR</h3>
+                    <p class="text-sm text-slate-500 mb-6">Masukkan kode Hash (Fingerprint) dari dokumen yang telah di-generate sebelumnya untuk melihat halaman verifikasi publiknya.</p>
+                    
+                    <div class="flex gap-2 max-w-xl mx-auto">
+                        <input type="text" id="manual-hash-input" placeholder="Masukkan SHA-256 Hash..." class="flex-1 rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-blue">
+                        <button onclick="processScanURL()" class="bg-brand-emerald hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center gap-2">
+                            <i data-lucide="search" class="w-4 h-4"></i> Cek
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Web Verification Result Card -->
+                <div id="web-verify-result" class="hidden bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative">
+                    <!-- Status Header -->
+                    <div id="web-validity-header" class="bg-brand-emerald p-6 text-white text-center relative overflow-hidden">
+                        <div class="absolute inset-0 opacity-10 flex items-center justify-center">
+                             <i data-lucide="shield-check" class="w-64 h-64"></i>
+                        </div>
+                        <div class="relative z-10 flex flex-col items-center">
+                             <div class="bg-white/20 p-3 rounded-full mb-3 backdrop-blur-sm">
+                                <i data-lucide="check-circle" class="w-10 h-10 text-white" id="web-status-icon"></i>
+                             </div>
+                             <h2 class="text-2xl font-bold tracking-tight" id="web-status-title">Tanda Tangan Valid & Diakui</h2>
+                             <p class="text-emerald-100 mt-2 max-w-lg" id="web-status-desc">Informasi kriptografis cocok dengan basis data Otoritas Sertifikat Digital. Dokumen diterbitkan secara sah.</p>
+                        </div>
+                    </div>
+
+                    <!-- Details Body -->
+                    <div class="p-6 md:p-8 space-y-6">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                <i data-lucide="file-badge-2" class="w-5 h-5 text-brand-blue"></i> Detail Dokumen
+                            </h3>
+                            <span class="bg-slate-100 text-slate-500 text-xs font-mono px-2 py-1 rounded" id="web-short-hash">#ID</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Left Col -->
+                            <div class="space-y-4">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase">Judul Dokumen</p>
+                                    <p class="text-base font-medium text-slate-800 mt-1" id="web-doc-title">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase">Ditandatangani Pada</p>
+                                    <p class="text-base font-medium text-slate-800 mt-1" id="web-sign-time">-</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Right Col: Signer Card -->
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <h4 class="text-xs font-bold text-brand-blue uppercase mb-3 border-b border-slate-200 pb-2">Informasi Penandatangan</h4>
+                                <div class="flex items-start gap-3">
+                                    <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                                        <i data-lucide="user-check" class="w-6 h-6 text-brand-blue"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-slate-800" id="web-signer-name">-</p>
+                                        <p class="text-sm text-slate-600" id="web-signer-role">-</p>
+                                        
+                                        <div class="mt-3 flex items-center gap-1.5 text-xs text-brand-emerald font-semibold bg-green-50 w-fit px-2 py-1 rounded-md border border-green-100">
+                                            <i data-lucide="shield" class="w-3 h-3"></i> Identitas Terverifikasi
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4">
+                            <p class="text-[11px] font-semibold text-slate-500 uppercase mb-1">Sidik Jari Kriptografi Penuh (SHA-256)</p>
+                            <p class="text-xs font-mono text-slate-600 break-all" id="web-full-hash">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 border-t border-slate-200 p-4 text-center">
+                        <button onclick="document.getElementById('web-verify-result').classList.add('hidden'); document.getElementById('scan-input-area').classList.remove('hidden');" class="text-sm text-brand-blue hover:underline font-medium">
+                            Cek dokumen lainnya
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Database Simulasi Klien (In-Memory)
+        const signatureDatabase = {};
+        let currentGeneratedHash = '';
+        let currentGeneratedData = null; // Store latest generator data for realistic flow
+
+        // Set default datetime to now for the generator form
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('signDate').value = now.toISOString().slice(0,16);
+        });
+
+        // ==========================================
+        // UI & NAVIGATION LOGIC
+        // ==========================================
+        function switchTab(tabId) {
+            const btnGen = document.getElementById('tab-generator');
+            const btnVer = document.getElementById('tab-verifier');
+            const btnScan = document.getElementById('tab-scanner');
+            
+            const viewGen = document.getElementById('view-generator');
+            const viewVer = document.getElementById('view-verifier');
+            const viewScan = document.getElementById('view-scanner');
+
+            // Reset all styles
+            [btnGen, btnVer, btnScan].forEach(btn => {
+                btn.className = "text-blue-100 hover:bg-blue-800 hover:text-white px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2";
+            });
+            [viewGen, viewVer, viewScan].forEach(view => view.classList.add('hidden'));
+
+            if (tabId === 'generator') {
+                btnGen.classList.add('bg-blue-800', 'text-white', 'shadow-inner');
+                btnGen.classList.remove('text-blue-100');
+                viewGen.classList.remove('hidden');
+            } else if (tabId === 'verifier') {
+                btnVer.classList.add('bg-blue-800', 'text-white', 'shadow-inner');
+                btnVer.classList.remove('text-blue-100');
+                viewVer.classList.remove('hidden');
+                
+                if(document.getElementById('verify-result-view').classList.contains('hidden') && 
+                   document.getElementById('verify-loading-view').classList.contains('hidden')) {
+                    resetVerifier();
+                }
+            } else if (tabId === 'scanner') {
+                btnScan.classList.add('bg-blue-800', 'text-white', 'shadow-inner');
+                btnScan.classList.remove('text-blue-100');
+                viewScan.classList.remove('hidden');
+                
+                // Pre-fill input if there's a recently generated hash
+                if (currentGeneratedHash) {
+                    document.getElementById('manual-hash-input').value = currentGeneratedHash;
+                }
+            }
+        }
+
+        // ==========================================
+        // MODULE 1: GENERATOR LOGIC
+        // ==========================================
+        function generateCryptographicHash(dataString) {
+            const chars = '0123456789abcdef';
+            let hash = '';
+            for (let i = 0; i < 64; i++) {
+                hash += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return hash;
+        }
+
+        function handleGenerate(event) {
+            event.preventDefault();
+
+            // Ambil Data
+            const data = {
+                signerName: document.getElementById('signerName').value,
+                signerRole: document.getElementById('signerRole').value,
+                documentTitle: document.getElementById('documentTitle').value,
+                signDate: document.getElementById('signDate').value,
+                timestamp: new Date().getTime()
+            };
+
+            const dataString = JSON.stringify(data);
+            const hashId = generateCryptographicHash(dataString);
+            data.hashId = hashId;
+
+            signatureDatabase[hashId] = data;
+            currentGeneratedHash = hashId;
+            currentGeneratedData = data; 
+
+            // Update UI Output
+            document.getElementById('qr-placeholder').classList.add('hidden');
+            const resultContainer = document.getElementById('qr-result-container');
+            resultContainer.classList.remove('hidden');
+            
+            document.getElementById('generated-hash').textContent = hashId;
+
+            // MENGUBAH LOGIKA URL QR CODE AGAR BISA DISCAN PERANGKAT LAIN:
+            // Karena kita tidak memakai server, kita enkode seluruh data dokumen
+            // ke dalam tautan (Base64), sehingga HP apapun yang men-scan akan tahu data aslinya.
+            const payload = btoa(encodeURIComponent(JSON.stringify(data)));
+            const verificationUrl = `${window.location.origin}${window.location.pathname}?scan=${payload}`;
+
+            const qrElement = document.getElementById('qrcode');
+            qrElement.innerHTML = ''; 
+            new QRCode(qrElement, {
+                text: verificationUrl, 
+                width: 256,
+                height: 256,
+                colorDark : "#1e3a8a", 
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+        }
+
+        function simulateScanRedirect() {
+             if (currentGeneratedHash) {
+                 switchTab('scanner');
+                 document.getElementById('manual-hash-input').value = currentGeneratedHash;
+                 processScanURL();
+             }
+        }
+
+        function downloadQRCode() {
+            const qrContainer = document.getElementById('qrcode');
+            const canvas = qrContainer.querySelector('canvas');
+            const img = qrContainer.querySelector('img');
+            let imageURI;
+            
+            if (canvas && canvas.width > 0) {
+                imageURI = canvas.toDataURL("image/png");
+            } else if (img && img.src) {
+                imageURI = img.src;
+            } else {
+                alert("Gambar QR Code belum tersedia.");
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.href = imageURI;
+            const shortId = currentGeneratedHash ? currentGeneratedHash.substring(0, 8).toUpperCase() : 'DOC';
+            link.download = `QRTTE_${shortId}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ==========================================
+        // MODULE 2: VERIFIER (PDF) LOGIC
+        // ==========================================
+        const dropZone = document.getElementById('drop-zone');
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('border-brand-blue', 'bg-blue-50');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('border-brand-blue', 'bg-blue-50');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('border-brand-blue', 'bg-blue-50');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function processFile(file) {
+            if (file.type !== "application/pdf") {
+                alert("Mohon unggah dokumen dalam format PDF.");
+                return;
+            }
+
+            const fileURL = URL.createObjectURL(file);
+            document.getElementById('pdf-viewer').src = fileURL;
+            document.getElementById('res-filename').textContent = file.name;
+            
+            const pseudoHash = currentGeneratedData ? currentGeneratedData.hashId : generateCryptographicHash(file.name + file.size);
+
+            document.getElementById('verify-upload-view').classList.add('hidden');
+            document.getElementById('verify-loading-view').classList.remove('hidden');
+            document.getElementById('verify-loading-view').classList.add('flex');
+
+            setTimeout(() => {
+                showVerificationResult(file, pseudoHash);
+            }, 2800); 
+        }
+
+        function showVerificationResult(file, hash) {
+            document.getElementById('verify-loading-view').classList.add('hidden');
+            document.getElementById('verify-loading-view').classList.remove('flex');
+            
+            const dataRecord = signatureDatabase[hash];
+            const isValid = !!dataRecord || currentGeneratedData !== null; 
+            
+            const banner = document.getElementById('pdf-validity-banner');
+            if (isValid) {
+                banner.className = "bg-brand-emerald text-white p-5 flex flex-col items-center text-center relative shrink-0";
+                banner.innerHTML = `
+                    <div class="absolute -right-10 -top-10 text-white/10">
+                        <i data-lucide="shield-check" class="w-40 h-40"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="bg-white p-2 rounded-full mb-2 shadow-lg inline-block text-brand-emerald">
+                            <i data-lucide="badge-check" class="w-8 h-8"></i>
+                        </div>
+                        <h4 class="text-xl font-bold tracking-tight">Tanda Tangan Valid</h4>
+                        <p class="text-emerald-100 text-sm mt-1 leading-tight">Dokumen utuh dan belum mengalami perubahan sejak ditandatangani.</p>
+                    </div>`;
+            } else {
+                banner.className = "bg-red-600 text-white p-5 flex flex-col items-center text-center relative shrink-0";
+                banner.innerHTML = `
+                    <div class="absolute -right-10 -top-10 text-white/10">
+                        <i data-lucide="shield-alert" class="w-40 h-40"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="bg-white p-2 rounded-full mb-2 shadow-lg inline-block text-red-600">
+                            <i data-lucide="x-octagon" class="w-8 h-8"></i>
+                        </div>
+                        <h4 class="text-xl font-bold tracking-tight">Tidak Terverifikasi</h4>
+                        <p class="text-red-100 text-sm mt-1 leading-tight">Dokumen mungkin telah dimodifikasi atau tanda tangan tidak dikenali oleh sistem kami.</p>
+                    </div>`;
+            }
+            lucide.createIcons();
+
+            const docTitle = dataRecord ? dataRecord.documentTitle : (currentGeneratedData ? currentGeneratedData.documentTitle : file.name);
+            const signerName = dataRecord ? dataRecord.signerName : (currentGeneratedData ? currentGeneratedData.signerName : "John Doe (Simulasi)");
+            const signerRole = dataRecord ? dataRecord.signerRole : (currentGeneratedData ? currentGeneratedData.signerRole : "Pejabat Penandatangan");
+            
+            let dateStr = "";
+            if (dataRecord) {
+                const dateObj = new Date(dataRecord.signDate);
+                dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+            } else if (currentGeneratedData) {
+                const dateObj = new Date(currentGeneratedData.signDate);
+                dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+            } else {
+                dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+            }
+
+            document.getElementById('res-doc-title').textContent = docTitle;
+            document.getElementById('res-doc-hash').textContent = hash;
+            document.getElementById('res-signer-name').textContent = signerName;
+            document.getElementById('res-signer-role').textContent = signerRole;
+            document.getElementById('res-sign-time').textContent = dateStr;
+            
+            document.getElementById('verify-result-view').classList.remove('hidden');
+        }
+
+        function downloadVerificationResult() {
+            const docTitle = document.getElementById('res-doc-title').textContent;
+            const docHash = document.getElementById('res-doc-hash').textContent;
+            const signerName = document.getElementById('res-signer-name').textContent;
+            const signerRole = document.getElementById('res-signer-role').textContent;
+            const signTime = document.getElementById('res-sign-time').textContent;
+
+            const reportContent = `======================================
+LAPORAN VERIFIKASI TANDA TANGAN DIGITAL
+======================================
+
+STATUS: TERVERIFIKASI / VALID
+Sistem: SecureSign ID (Simulasi)
+
+--- IDENTITAS DOKUMEN ---
+- Judul Dokumen   : ${docTitle}
+- Kode Hash (SHA) : ${docHash}
+
+--- INFORMASI PENANDATANGAN ---
+- Nama Lengkap    : ${signerName}
+- Jabatan         : ${signerRole}
+- Waktu TTD       : ${signTime}
+- Penerbit        : Otoritas Sertifikat Digital ID (Simulasi)
+- Root CA         : Kementerian Kominfo RI
+- Tujuan          : Otentikasi Dokumen dan Non-Repudiasi
+
+--------------------------------------
+Dihasilkan oleh SecureSign ID pada: ${new Date().toLocaleString('id-ID')}
+`;
+
+            const blob = new Blob([reportContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Laporan_Verifikasi_${docTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function resetVerifier() {
+            document.getElementById('file-upload').value = '';
+            document.getElementById('pdf-viewer').src = '';
+            
+            document.getElementById('verify-result-view').classList.add('hidden');
+            document.getElementById('verify-loading-view').classList.add('hidden');
+            document.getElementById('verify-loading-view').classList.remove('flex');
+            
+            document.getElementById('verify-upload-view').classList.remove('hidden');
+        }
+
+        // ==========================================
+        // MODULE 3: WEB QR SCANNER VERIFICATION
+        // ==========================================
+        function processScanURL() {
+            const hashInput = document.getElementById('manual-hash-input').value.trim();
+            if (!hashInput) {
+                alert("Masukkan hash atau gunakan tombol 'Simulasi Scan' dari halaman Generator.");
+                return;
+            }
+
+            document.getElementById('scan-input-area').classList.add('hidden');
+            const resultCard = document.getElementById('web-verify-result');
+            resultCard.classList.remove('hidden');
+            resultCard.style.opacity = '0.5'; 
+
+            setTimeout(() => {
+                resultCard.style.opacity = '1';
+                renderWebVerificationResult(hashInput);
+            }, 800);
+        }
+
+        function renderWebVerificationResult(hash) {
+            const dataRecord = signatureDatabase[hash];
+            const header = document.getElementById('web-validity-header');
+            
+            if (dataRecord) {
+                // Success Case
+                header.className = "bg-brand-emerald p-6 text-white text-center relative overflow-hidden";
+                header.innerHTML = `
+                    <div class="absolute inset-0 opacity-10 flex items-center justify-center">
+                         <i data-lucide="shield-check" class="w-64 h-64"></i>
+                    </div>
+                    <div class="relative z-10 flex flex-col items-center">
+                         <div class="bg-white/20 p-3 rounded-full mb-3 backdrop-blur-sm">
+                            <i data-lucide="check-circle" class="w-10 h-10 text-white"></i>
+                         </div>
+                         <h2 class="text-2xl font-bold tracking-tight">Tanda Tangan Valid & Diakui</h2>
+                         <p class="text-emerald-100 mt-2 max-w-lg">Informasi kriptografis cocok dengan basis data Otoritas Sertifikat Digital. Dokumen diterbitkan secara sah.</p>
+                    </div>
+                `;
+
+                document.getElementById('web-doc-title').textContent = dataRecord.documentTitle;
+                
+                const dateObj = new Date(dataRecord.signDate);
+                document.getElementById('web-sign-time').textContent = dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB';
+                
+                document.getElementById('web-signer-name').textContent = dataRecord.signerName;
+                document.getElementById('web-signer-role').textContent = dataRecord.signerRole;
+                
+            } else {
+                // Failed Case (Not found in DB)
+                header.className = "bg-red-600 p-6 text-white text-center relative overflow-hidden";
+                header.innerHTML = `
+                    <div class="absolute inset-0 opacity-10 flex items-center justify-center">
+                         <i data-lucide="shield-alert" class="w-64 h-64"></i>
+                    </div>
+                    <div class="relative z-10 flex flex-col items-center">
+                         <div class="bg-white/20 p-3 rounded-full mb-3 backdrop-blur-sm">
+                            <i data-lucide="x-octagon" class="w-10 h-10 text-white"></i>
+                         </div>
+                         <h2 class="text-2xl font-bold tracking-tight">Dokumen Tidak Ditemukan</h2>
+                         <p class="text-red-100 mt-2 max-w-lg">Kode hash tidak tercatat dalam basis data sistem kami. Dokumen mungkin palsu atau belum diterbitkan.</p>
+                    </div>
+                `;
+
+                document.getElementById('web-doc-title').textContent = "Data Tidak Tersedia";
+                document.getElementById('web-sign-time').textContent = "-";
+                document.getElementById('web-signer-name').textContent = "Tidak Dikenali";
+                document.getElementById('web-signer-role').textContent = "-";
+            }
+
+            document.getElementById('web-short-hash').textContent = hash.substring(0, 8).toUpperCase();
+            document.getElementById('web-full-hash').textContent = hash;
+            
+            lucide.createIcons();
+        }
+
+        // Check if URL has parameters on load (simulating actual QR scan opening the page)
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const scanPayload = urlParams.get('scan');
+            
+            if (scanPayload) {
+                try {
+                    // Dekode data (Base64 -> JSON) dari URL yang discan 
+                    const decodedData = JSON.parse(decodeURIComponent(atob(scanPayload)));
+                    
+                    // Injeksi data ke database lokal agar dikenali sebagai dokumen VALID
+                    signatureDatabase[decodedData.hashId] = decodedData;
+                    
+                    // Buka tab Halaman Simulasi Scan QR dan proses hasnya
+                    switchTab('scanner');
+                    document.getElementById('manual-hash-input').value = decodedData.hashId;
+                    processScanURL();
+                } catch (e) {
+                    console.error("Gagal membaca payload QR Code:", e);
+                }
+            } 
+        });
+
+    </script>
+</body>
+</html>
